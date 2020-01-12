@@ -77,7 +77,6 @@ void Display_Update()
     static double lastHDOP = 99.9;
 
     static int trust = 0;
-    static int eflag = 0;
     struct gpsData gpsInfo;          // Create local object with all parameters
 
     int hh = rtc.getHours();
@@ -86,7 +85,6 @@ void Display_Update()
     
     if (lastMinutes != mm) {   // Even or odd minute
       if (mm % 2) {
-          eflag = 0;
           // Every ODD minute, Sync GPS to RTC
           gpsNMEA.getFrameData(&gpsInfo);
           if (gpsInfo.valid) {
@@ -117,23 +115,15 @@ void Display_Update()
             if((--trust) < 0)
               trust = goodRTC = 0; 
           }
-      } else {
-          eflag = 1;
       }
       lastMinutes = mm;
     }
 
+    // Display UTC time hh:mm:ss
     if (lastSeconds != ss) {  // Even or odd minute
       lastSeconds = ss;
       LCD.setCursor(12, 0);
       sprintf(esc, "%02d:%02d:%02d", hh, mm, ss);
-      /*
-      if(eflag) {
-        sprintf(esc, "EVEN: %02d", 60-lastSeconds);
-      } else {
-        sprintf(esc, "ODD : %02d", 60-lastSeconds);
-      }
-      */
       LCD.print(esc);
     }
 
@@ -367,7 +357,7 @@ void loop()
     if(goodRTC && !rtc.getSeconds()) {
       if (!(rtc.getMinutes() % 2)) {
         //sprintf(esc, "UTC: %02d:%02d:%02d\n", rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
-        sprintf(esc, "TX: %02d:%02d", rtc.getHours(), rtc.getMinutes());
+        sprintf(esc, "TX:%02d:%02d", rtc.getHours(), rtc.getMinutes());
         LCD.setCursor(12, 0);
         LCD.print(esc);
         
@@ -382,6 +372,7 @@ void loop()
         digitalWrite(pinPA, LOW);                     // Turn PA pin off
         
         if(++seqn > 99) seqn = 0;                     // just calculate number of seuences we sent out
+        delay(1000);                                  // Delay 1 sec to show TX time
       }
     }        
 }
