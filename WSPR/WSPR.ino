@@ -66,15 +66,10 @@ struct gpsData gpsInfo;
 // LCD update function triggered by GPS data parsed
 void Display_Update()
 {
-    static int lastSeqn = -1;
-    static int lastSecond = -1;
     static int lastFreq = -1;
-
     static int lastSeconds = -1;
     static int lastMinutes = -1;
-    static int lastGPSValid = -1;
     static int lastSatellites = -1;
-    static double lastHDOP = 99.9;
 
     static int trust = 0;
     struct gpsData gpsInfo;          // Create local object with all parameters
@@ -84,38 +79,34 @@ void Display_Update()
     int ss = rtc.getSeconds();
     
     if (lastMinutes != mm) {   // Even or odd minute
+      LCD.setCursor(0, 3); // String #3
+      gpsNMEA.getFrameData(&gpsInfo);
+      // EVEN Minutes event
       if (mm % 2) {
-          // Every ODD minute, Sync GPS to RTC
-          gpsNMEA.getFrameData(&gpsInfo);
-          if (gpsInfo.valid) {
-            rtc.setTime(gpsInfo.utcHours, gpsInfo.utcMinutes, gpsInfo.utcSeconds);
-            goodRTC = 1;
-            trust = 30; // We trust to RTC for the next 30*2 minutes (hour)
-              
-            // Print number of satelites
-            if (lastSatellites != gpsInfo.satellites) {
-              LCD.setCursor(13, 3); // String 4, Position 14. Number of Sats
-              sprintf(esc, "%02d", gpsInfo.satellites);
-              LCD.print(esc);
-              lastSatellites = gpsInfo.satellites;
-            }
-            // Print H-Doppler
-            if (lastHDOP != gpsInfo.hdop) {
-              LCD.setCursor(16, 3); // String 4, Position 17. HDOP
-              if (gpsInfo.hdop < 10.0)
-                LCD.print(gpsInfo.hdop, 2);
-              else if (gpsInfo.hdop < 99.9)
-                LCD.print(gpsInfo.hdop, 1);
-            } else {
-              LCD.print("99.9");
-            }  
-            lastHDOP = gpsInfo.hdop;
-          
-          } else {
-            if((--trust) < 0)
-              trust = goodRTC = 0; 
-          }
+        // Every ODD minute, Sync GPS to RTC
+        if (gpsInfo.valid) {
+          rtc.setTime(gpsInfo.utcHours, gpsInfo.utcMinutes, gpsInfo.utcSeconds);
+          goodRTC = 1;
+          trust = 30; // We trust to RTC for the next 30*2 minutes (hour)
+        } else {
+          if((--trust) < 0)
+            trust = goodRTC = 0; 
+        }
       }
+      
+      // Print string number 3
+      if (gpsInfo.valid) {
+        if (lastSatellites != gpsInfo.satellites) {
+          if(seqn>=0 && gpsInfo.satellites<99) {
+            sprintf(esc, "GPS:OK,SAT:%02d,SEQ:%02d", gpsInfo.satellites, seqn); // GPS:OK,SAT:99,SEQ:00
+            esc[20] = '\0'; // Just in Case
+            LCD.print(esc);
+          }
+          lastSatellites = gpsInfo.satellites;
+        } 
+      } else
+        LCD.print("GPS: LOST SIGNAL    ");
+
       lastMinutes = mm;
     }
 
@@ -127,24 +118,6 @@ void Display_Update()
       LCD.print(esc);
     }
 
-    // Print GPS validity
-    if (lastGPSValid != goodRTC) {
-      LCD.setCursor(5, 3); // String 4, Position 6. Valid/NotValid GPS signal
-      if (goodRTC)
-        LCD.print("Valid  ");
-      else
-        LCD.print("Invalid");
-      lastGPSValid = goodRTC;
-    }
-
-    // Print Sequence
-    if (lastSeqn != seqn) {
-      LCD.setCursor(18, 1); // String 2, Position 19. Counting seconds
-      sprintf(esc, "%02d", seqn);
-      LCD.print(esc);
-      lastSeqn = seqn;
-    }
-      
     // Print Frequency
     if (lastFreq != frequency) {
       LCD.setCursor(5, 2); // String 3, Position 6. Freq
@@ -293,7 +266,7 @@ void setup()
         
         // Fourth string
         LCD.setCursor(0, 3);
-        LCD.print("GPS:");
+        LCD.print("STABILIZING...");
         
         displayAutoUpdate = 1;
     }
@@ -360,6 +333,7 @@ void loop()
         sprintf(esc, "TX:%02d:%02d", rtc.getHours(), rtc.getMinutes());
         LCD.setCursor(12, 0);
         LCD.print(esc);
+        SerialUSB.println(esc);
         
         digitalWrite(pinPA, HIGH);                    // Turn PA pin on
                 
@@ -372,7 +346,6 @@ void loop()
         digitalWrite(pinPA, LOW);                     // Turn PA pin off
         
         if(++seqn > 99) seqn = 0;                     // just calculate number of seuences we sent out
-        delay(1000);                                  // Delay 1 sec to show TX time
       }
     }        
 }
