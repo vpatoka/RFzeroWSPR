@@ -22,7 +22,7 @@ extern int warmUp;                     // Warm up seconds counter
 extern int gpsEcho;                    // Echo GPS data to management port
 
 // LCD
-extern char esc[21];                   // Used to create one LCD string (20 char long)
+extern char esc[32];                   // Used to create one LCD string (20 char long)
 
 // SEQ
 extern int seqn;                       // Number of sequnce to send (roll out at 99)

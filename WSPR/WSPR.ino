@@ -58,6 +58,34 @@ RTCZero rtc;                                   // Create the rtc object
 
 #define pinPA 7            // PA on pin
 
+#define encA A0
+#define encB A1
+#define encP A2  // Rotary encoder push pin
+
+volatile int encState = 0;
+
+const uint8_t encTableHalfStep[6][4] =
+{
+    {0x3, 0x2, 0x1, 0x0},
+    {0x23, 0x0, 0x1, 0x0},
+    {0x13, 0x2, 0x0, 0x0},
+    {0x3, 0x5, 0x4, 0x0},
+    {0x3, 0x3, 0x4, 0x10},
+    {0x3, 0x5, 0x3, 0x20},
+};
+
+const uint8_t encTableFullStep[7][4] =
+{
+    {0x0, 0x2, 0x4,  0x0},
+    {0x3, 0x0, 0x1, 0x10},
+    {0x3, 0x2, 0x0,  0x0},
+    {0x3, 0x2, 0x1,  0x0},
+    {0x6, 0x0, 0x4,  0x0},
+    {0x6, 0x5, 0x0, 0x20},
+    {0x6, 0x5, 0x4,  0x0},
+};
+
+
 // Local variables
 bool firstCalibationSaved = false;
 
@@ -223,6 +251,23 @@ void setup()
     pinMode(0, OUTPUT);                                   // D0 is PA control
     digitalWrite(0, LOW);
 
+    // Rotary Encoder
+    pinMode(encA, INPUT); // Setup pins for encoder
+    pinMode(encB, INPUT);
+    pinMode(encP, INPUT);
+    digitalWrite(encA, HIGH);
+    digitalWrite(encB, HIGH);
+    digitalWrite(encP, HIGH);
+
+    // Setup interrupt handling for the encoder half- or full-step
+    attachInterrupt(digitalPinToInterrupt(encA), RotEncFullStep, CHANGE);
+    //attachInterrupt(digitalPinToInterrupt(encA), RotEncHalfStep, CHANGE);
+
+    attachInterrupt(digitalPinToInterrupt(encB), RotEncFullStep, CHANGE);
+    //attachInterrupt(digitalPinToInterrupt(encB), RotEncHalfStep, CHANGE);
+
+    attachInterrupt(digitalPinToInterrupt(encP), RotEncPushButton, LOW);
+
     // Prepare display
     if (displayMode)
     {
@@ -329,7 +374,6 @@ void loop()
     //Get Time From RTC, validate it, validate minutes/seconds, starte the transmission
     if(goodRTC && !rtc.getSeconds()) {
       if (!(rtc.getMinutes() % 2)) {
-        //sprintf(esc, "UTC: %02d:%02d:%02d\n", rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
         sprintf(esc, "TX:%02d:%02d", rtc.getHours(), rtc.getMinutes());
         LCD.setCursor(12, 0);
         LCD.print(esc);
@@ -348,6 +392,31 @@ void loop()
         if(++seqn > 99) seqn = 0;                     // just calculate number of seuences we sent out
       }
     }        
+}
+
+void RotEncHalfStep()
+{
+  encState = encTableHalfStep[encState & 0xF][(digitalRead(encB) << 1) | digitalRead(encA)];
+  int result = encState & 0x30;
+  if (result)
+    SerialUSB.println(result == 0x20 ? "Left" : "Right");  // 0x20 = Left, 0x10 = Right
+}
+
+void RotEncFullStep()
+{
+  encState = encTableFullStep[encState & 0xF][(digitalRead(encB) << 1) | digitalRead(encA)];
+  int result = encState & 0x30;
+  if (result)
+    SerialUSB.println(result == 0x20 ? "Left" : "Right");  // 0x20 = Left, 0x10 = Right
+}
+
+void RotEncPushButton()
+{
+  int timeStamp = millis();
+  static int lastTimeStamp = 0;
+  if (timeStamp - lastTimeStamp > 1)
+    SerialUSB.println("Push button pressed");
+  lastTimeStamp = timeStamp;
 }
 
 

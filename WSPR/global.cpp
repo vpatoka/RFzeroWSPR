@@ -3,7 +3,7 @@
 
 // S/W package info
 const char swPackage[] = "Beacon WSPR";
-const char swVersion[] = "0.9.3";
+const char swVersion[] = "0.9.3 mod";
 
 // Hardware
 int displayMode = 0;                          // LCD mode: 0: none, 1: 16x2
@@ -15,7 +15,7 @@ int warmUp = 0;                               // Warm up seconds counter
 int gpsEcho = 0;                              // Echo GPS data to management port
 
 // LCD
-char esc[21];                                 // Used to create one LCD string (20 char long)
+char esc[32];                                 // Used to create one LCD string (20 char long)
 
 // SEQ
 int seqn = -1;
