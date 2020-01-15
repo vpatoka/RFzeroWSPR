@@ -30,6 +30,15 @@ extern int seqn;                       // Number of sequnce to send (roll out at
 // GOOD RTC
 extern int goodRTC;                    // Special flag to trust to RTC
 
+// TX flag
+extern int TXflag;                     // Transmit only if this flag equal 0
+
+// Rotary Encoder Switch
+extern int REbutton;                   // Rotary Encoder Button
+extern int REinc;                      // Rotary Encoder right turns  
+extern int REdec;                      // Rotary Encoder left turns
+
+
 // Beacon data
 extern double frequency;               // The nominal normal beacon frequency, i.e. carrier frequency
 extern int calibInterval;              // Si5351A reference frequency calibration interval

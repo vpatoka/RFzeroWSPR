@@ -58,6 +58,8 @@ RTCZero rtc;                                   // Create the rtc object
 
 #define pinPA 7            // PA on pin
 
+#define INTERVAL  4        // Interval in minutes between of transmissions NOTE: Minus 110.6 seconds. So, if its value 4, then actual interval will be 2
+
 #define encA A0
 #define encB A1
 #define encP A2  // Rotary encoder push pin
@@ -101,13 +103,14 @@ void Display_Update()
 
     static int trust = 0;
     struct gpsData gpsInfo;          // Create local object with all parameters
+    static int txseconds = 0;
 
     int hh = rtc.getHours();
     int mm = rtc.getMinutes();
     int ss = rtc.getSeconds();
     
     if (lastMinutes != mm) {   // Even or odd minute
-      LCD.setCursor(0, 3); // String #3
+      if (--TXflag < 0) TXflag = INTERVAL;
       gpsNMEA.getFrameData(&gpsInfo);
       // EVEN Minutes event
       if (mm % 2) {
@@ -121,20 +124,6 @@ void Display_Update()
             trust = goodRTC = 0; 
         }
       }
-      
-      // Print string number 3
-      if (gpsInfo.valid) {
-        if (lastSatellites != gpsInfo.satellites) {
-          if(seqn>=0 && gpsInfo.satellites<99) {
-            sprintf(esc, "GPS:OK,SAT:%02d,SEQ:%02d", gpsInfo.satellites, seqn); // GPS:OK,SAT:99,SEQ:00
-            esc[20] = '\0'; // Just in Case
-            LCD.print(esc);
-          }
-          lastSatellites = gpsInfo.satellites;
-        } 
-      } else
-        LCD.print("GPS: LOST SIGNAL    ");
-
       lastMinutes = mm;
     }
 
@@ -142,7 +131,12 @@ void Display_Update()
     if (lastSeconds != ss) {  // Even or odd minute
       lastSeconds = ss;
       LCD.setCursor(12, 0);
-      sprintf(esc, "%02d:%02d:%02d", hh, mm, ss);
+      if(digitalRead(pinPA) == LOW) {
+        sprintf(esc, "%02d:%02d:%02d", hh, mm, ss);
+        txseconds = 0;
+      } else
+        sprintf(esc, "TX: %03d ", txseconds++);
+        
       LCD.print(esc);
     }
 
@@ -154,6 +148,23 @@ void Display_Update()
       LCD.print(" kHz");
       lastFreq = frequency;
     }
+    
+    // Print string number 3
+    if (gpsInfo.valid || digitalRead(pinPA) == HIGH) {
+      if(lastSatellites != gpsInfo.satellites || digitalRead(pinPA) == HIGH) {
+        if(gpsInfo.satellites<99) {
+          LCD.setCursor(0, 3);
+          sprintf(esc, "GPS:OK,SAT:%02d,SEQ:%02d", gpsInfo.satellites, seqn); // GPS:OK,SAT:99,SEQ:00
+          LCD.print(esc);
+        }
+        lastSatellites = gpsInfo.satellites;
+      }  
+    } else {
+      if(!goodRTC) {
+        LCD.setCursor(0, 3);
+        LCD.print("GPS: LOST SIGNAL    ");
+      }  
+    }  
     
 }
 
@@ -226,7 +237,7 @@ void setup()
     // Setup USB
     SerialUSB.begin(9600);
     delay(2000);  // Delay used instead of "while (!(SerialUSB));" because it halts if not connected to USB. Checks show up to 1 s so 2 s to be on the safe side
-    
+
     // Initialize the RTC
     rtc.begin();
 
@@ -268,6 +279,8 @@ void setup()
 
     attachInterrupt(digitalPinToInterrupt(encP), RotEncPushButton, LOW);
 
+    //manageFreq();
+
     // Prepare display
     if (displayMode)
     {
@@ -290,31 +303,13 @@ void setup()
         LCD.print("version: ");
         LCD.print(swVersion);
         delay(3000);
-        LCD.clear();
 
-        //Prepare the LCD
-        
-        // First string
-        LCD.print("RFzero WSPR"); // Print it at 0,0
-
-        // Second string
-        LCD.setCursor(0, 1);
-        sprintf(esc, "MSG: %s %s", call, locator);
-        LCD.print(esc); 
-        
-        // Third string
-        LCD.setCursor(0, 2);
-        LCD.print("QRG: ");
-        float z = frequency/1000.0;
-        LCD.print(z, 2);
-        LCD.print(" kHz");
-        
-        // Fourth string
-        LCD.setCursor(0, 3);
-        LCD.print("STABILIZING...");
-        
+        manageFreq();
         displayAutoUpdate = 1;
+        ScreenSet();
     }
+    
+
 
     // Warm up?
     if (warmUp)
@@ -372,13 +367,15 @@ void loop()
     }
 
     //Get Time From RTC, validate it, validate minutes/seconds, starte the transmission
-    if(goodRTC && !rtc.getSeconds()) {
-      if (!(rtc.getMinutes() % 2)) {
-        sprintf(esc, "TX:%02d:%02d", rtc.getHours(), rtc.getMinutes());
-        LCD.setCursor(12, 0);
-        LCD.print(esc);
-        SerialUSB.println(esc);
-        
+    if(!TXflag && goodRTC) {
+      TXflag = INTERVAL;
+      if (!(rtc.getMinutes() % 2) && !rtc.getSeconds()) {
+        /* DEBUG 
+        #sprintf(esc, "TX:%02d:%02d", rtc.getHours(), rtc.getMinutes());
+        #LCD.setCursor(12, 0);
+        #LCD.print(esc);
+        #SerialUSB.println(esc);
+        */
         digitalWrite(pinPA, HIGH);                    // Turn PA pin on
                 
         si5351a.rfOn();
@@ -389,7 +386,7 @@ void loop()
         
         digitalWrite(pinPA, LOW);                     // Turn PA pin off
         
-        if(++seqn > 99) seqn = 0;                     // just calculate number of seuences we sent out
+        if(++seqn > 99) seqn = 1;                     // just calculate number of seuences we sent out
       }
     }        
 }
@@ -398,27 +395,133 @@ void RotEncHalfStep()
 {
   encState = encTableHalfStep[encState & 0xF][(digitalRead(encB) << 1) | digitalRead(encA)];
   int result = encState & 0x30;
-  if (result)
-    SerialUSB.println(result == 0x20 ? "Left" : "Right");  // 0x20 = Left, 0x10 = Right
+  if (result == 0x20)
+    REdec = 1;
+  if (result == 0x10)
+    REinc = 1;  
+  //if (result)
+  //  SerialUSB.println(result == 0x20 ? "Left" : "Right");  // 0x20 = Left, 0x10 = Right
 }
 
 void RotEncFullStep()
 {
   encState = encTableFullStep[encState & 0xF][(digitalRead(encB) << 1) | digitalRead(encA)];
   int result = encState & 0x30;
-  if (result)
-    SerialUSB.println(result == 0x20 ? "Left" : "Right");  // 0x20 = Left, 0x10 = Right
+  if (result == 0x20)
+    REdec = 1;
+  if (result == 0x10)
+    REinc = 1; 
+  //if (result)   
+  //SerialUSB.println(result == 0x20 ? "Left" : "Right");  // 0x20 = Left, 0x10 = Right
 }
 
 void RotEncPushButton()
 {
   int timeStamp = millis();
   static int lastTimeStamp = 0;
-  if (timeStamp - lastTimeStamp > 1)
-    SerialUSB.println("Push button pressed");
+  if (timeStamp - lastTimeStamp > 1) {
+    if(--REbutton < 0) REbutton = 7;
+    //SerialUSB.println("Push button pressed");
+  }  
   lastTimeStamp = timeStamp;
 }
 
+void manageFreq(void)
+{
+  int prevstep = 8;
+  double prevfreq = 0.0;
+  double mult = 0.0;
+  int flag = 0;
 
+  LCD.clear();
+  LCD.print("Set Beacon Frequency");
+  LCD.setCursor(0, 1);
+  LCD.print("   Push or Rotate");
+  LCD.setCursor(0, 2);
+  LCD.print("MULT: x");  
+  LCD.setCursor(0, 3);
+  LCD.print("FREQ: ");  
 
+  while(REbutton) {
+    delay(200);
+    if(flag++ > 300) // Wait for any activity for 1minute. if not - continue with default
+      return;
+    switch(REbutton) {
+      case 1:
+        mult = 1.0;
+        break;
+      case 2:
+        mult = 10.0;
+        break;
+      case 3:
+        mult = 100.0;
+        break;
+      case 4:
+        mult = 1000.0;
+        break;
+      case 5:
+        mult = 10000.0;
+        break;
+      case 6:
+        mult = 100000.0;
+        break;
+      case 7:
+        mult = 1000000.0;
+        break;
+      default:
+        mult = 0.0;
+        break;
+    }
+
+    if(REbutton != prevstep) {
+      flag = 0;
+      prevstep = REbutton;
+      LCD.setCursor(7, 2);
+      LCD.print("       ");
+      LCD.setCursor(7, 2);
+      LCD.print(mult, 0);  
+    }   
+    if(REinc) {
+      if ((frequency += (REinc*mult)) > 200000000.0)
+        frequency = 2605.0;
+      REinc = 0;
+    } else { 
+      if(REdec) {
+        if ((frequency -= (REdec*mult)) < 2605.0)
+          frequency = 200000000.0;
+        REdec = 0;
+      }
+    }
+    if(prevfreq != frequency) {
+      flag = 0;
+      prevfreq = frequency;
+      LCD.setCursor(6, 3);
+      LCD.print(frequency, 0);
+    }   
+  }
+}
+
+void ScreenSet(void)
+{
+  LCD.clear();
+        
+  // First string
+  LCD.print("RFzero WSPR"); // Print it at 0,0
+
+  // Second string
+  LCD.setCursor(0, 1);
+  sprintf(esc, "MSG: %s %s", call, locator);
+  LCD.print(esc); 
+        
+  // Third string
+  LCD.setCursor(0, 2);
+  LCD.print("QRG: ");
+  float z = frequency/1000.0;
+  LCD.print(z, 2);
+  LCD.print(" kHz");
+        
+  // Fourth string
+  LCD.setCursor(0, 3);
+  LCD.print("STABILIZING...");        
+}
 // ----------------- EOF -------------------------------------------------------------------

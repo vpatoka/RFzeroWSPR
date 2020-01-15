@@ -18,10 +18,17 @@ int gpsEcho = 0;                              // Echo GPS data to management por
 char esc[32];                                 // Used to create one LCD string (20 char long)
 
 // SEQ
-int seqn = -1;
+int seqn = 1;
 
 // Good RTC flag
-extern int goodRTC = 0;
+int goodRTC = 0;
+
+// TXflag
+int TXflag = 2;                               // Initially, wait two minites
+
+int REbutton = 7;                             // Rotary Encoder Switch. Deafult 1Mhz
+int REinc = 0;                                // Rotary Encoder right turns  
+int REdec = 0;                                // Rotary Encoder left turns
 
 // Beacon data
 double frequency = 0.0;                       // The nominal normal beacon frequency, i.e. carrier frequency
