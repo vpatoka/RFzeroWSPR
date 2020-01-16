@@ -161,6 +161,7 @@ void ParseCommand(char *str)
 
                 // BEACON
                 eeprom.writeByte(EEPROM_BEACON_CalibInterval, 5);
+                eeprom.writeByte(EEPROM_BEACON_Interval, 2);
 
                 // WSPR
                 eeprom.writeByte(EEPROM_BEACON_WSPRPower, 13);
@@ -198,6 +199,24 @@ void ParseCommand(char *str)
                     if ((1 <= value) && (value <= 0xFF))
                     {
                         eeprom.writeByte(EEPROM_BEACON_CalibInterval, value);
+                        comStatus = 1;
+                        configChanged = 1;
+                    }
+                    else
+                        comStatus = 2;
+                }
+                else
+                    comStatus = 2;
+            }
+
+            // wr txdly INTERVAL_MINUTES
+            else if (0 == strncmp("wr txdly ", str, sizeof("wr txdly ") - 1))
+            {
+                if (1 == sscanf(&str[sizeof("wr txdly ") - 1], "%d", &value))
+                {
+                    if ((1 <= value) && (value <= 0xFF))
+                    {
+                        eeprom.writeByte(EEPROM_BEACON_Interval, value);
                         comStatus = 1;
                         configChanged = 1;
                     }
@@ -310,7 +329,7 @@ void ParseCommand(char *str)
                 SerialUSB.println(buf);
                 sprintf(buf, "T1 type: 0: transformer*, 1: combiner, 2: none  : %d", eeprom.readByte(EEPROM_HW_T1, 0));
                 SerialUSB.println(buf);
-                sprintf(buf, "Display: 0: none, 1: 16x2*                      : %d", eeprom.readByte(EEPROM_HW_DisplayMode, 1));
+                sprintf(buf, "Display: 0: none, 1: 20x4*                      : %d", eeprom.readByte(EEPROM_HW_DisplayMode, 1));
                 SerialUSB.println(buf);
 
                 sprintf(buf, "Warm up before transmitting: 0* to 255 s        : %d", eeprom.readByte(EEPROM_HW_WarmUp, 0));
@@ -325,7 +344,9 @@ void ParseCommand(char *str)
                 doubleToString(freq, 0, buffreq);
                 sprintf(buf, "\nNominal beacon frequency in Hz                  : %s", buffreq);
                 SerialUSB.println(buf);
-                sprintf(buf, "Calibration interval 1 to 255, 10*              : %d", eeprom.readByte(EEPROM_BEACON_CalibInterval, 15));
+                sprintf(buf, "TX interval (minutes) 2 to 59, 4*               : %d", eeprom.readByte(EEPROM_BEACON_Interval, 4));
+                SerialUSB.println(buf);
+                sprintf(buf, "Calibration interval 1 to 255, 15*              : %d", eeprom.readByte(EEPROM_BEACON_CalibInterval, 15));
                 SerialUSB.println(buf);
 
                 SerialUSB.print("Call, max six (type 1)/ten (type 2) chars.      : ");
@@ -361,6 +382,8 @@ void ParseCommand(char *str)
 
                 SerialUSB.println("  wr freq FREQ               to set the beacon nominal frequency in Hz from 100 kHz and up\n");
 
+                SerialUSB.println("  wr txdly MINUTES           to set delay between of transmissions, 2 - 59");
+
                 SerialUSB.println("  wr cal INTERVAL            to set the number of sequences before calibrating the frequencies, 1 - 255");
                 SerialUSB.println("  wr warmup SECONDS          to set the number of seconds to warm up the H/W before transmitting, 0 - 255\n");
 
@@ -369,7 +392,7 @@ void ParseCommand(char *str)
                 SerialUSB.println("  wr defaults                to set the H/W and S/W defaults");
                 SerialUSB.println("  wr hw T1 LCD               to set the H/W where:");
                 SerialUSB.println("                                T1  : 0: transformer   1: combiner   2: none");
-                SerialUSB.println("                                LCD : 0: none          1: 16x2");
+                SerialUSB.println("                                LCD : 0: none          1: 20x4");
                 SerialUSB.println("  wr frst FREQ               to write the Si5351A start reference frequency to the EEPROM\n");
 
                 SerialUSB.println("  rd cfg                     to list the current configuration\n");

@@ -58,8 +58,6 @@ RTCZero rtc;                                   // Create the rtc object
 
 #define pinPA 7            // PA on pin
 
-#define INTERVAL  4        // Interval in minutes between of transmissions NOTE: Minus 110.6 seconds. So, if its value 4, then actual interval will be 2
-
 #define encA A0
 #define encB A1
 #define encP A2  // Rotary encoder push pin
@@ -110,7 +108,7 @@ void Display_Update()
     int ss = rtc.getSeconds();
     
     if (lastMinutes != mm) {   // Even or odd minute
-      if (--TXflag < 0) TXflag = INTERVAL;
+      if (digitalRead(pinPA) == LOW) TXflag--; // Do not count interval if we are transmitting
       gpsNMEA.getFrameData(&gpsInfo);
       // EVEN Minutes event
       if (mm % 2) {
@@ -367,17 +365,13 @@ void loop()
     }
 
     //Get Time From RTC, validate it, validate minutes/seconds, starte the transmission
-    if(!TXflag && goodRTC) {
-      TXflag = INTERVAL;
+    if(TXflag<=0 && goodRTC) {
       if (!(rtc.getMinutes() % 2) && !rtc.getSeconds()) {
-        /* DEBUG 
-        #sprintf(esc, "TX:%02d:%02d", rtc.getHours(), rtc.getMinutes());
-        #LCD.setCursor(12, 0);
-        #LCD.print(esc);
-        #SerialUSB.println(esc);
-        */
+
         digitalWrite(pinPA, HIGH);                    // Turn PA pin on
-                
+        
+        TXflag = Interval; // NOTE: 110.6 seconds - is WSPR time to transmit the payload                
+        
         si5351a.rfOn();
         Modes.sendMGM();
         si5351a.rfOff();                              // Send "no signal"
@@ -436,7 +430,7 @@ void manageFreq(void)
   LCD.clear();
   LCD.print("Set Beacon Frequency");
   LCD.setCursor(0, 1);
-  LCD.print("   Push or Rotate");
+  LCD.print("  (Push or Rotate)");
   LCD.setCursor(0, 2);
   LCD.print("MULT: x");  
   LCD.setCursor(0, 3);

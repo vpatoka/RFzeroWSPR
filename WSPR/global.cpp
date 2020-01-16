@@ -6,7 +6,7 @@ const char swPackage[] = "Beacon WSPR";
 const char swVersion[] = "0.9.3 mod";
 
 // Hardware
-int displayMode = 0;                          // LCD mode: 0: none, 1: 16x2
+int displayMode = 1;                          // LCD mode: 0: none, 1: 20x4
 int displayAutoUpdate = 0;                    // Allow automated updating of the display
 
 int warmUp = 0;                               // Warm up seconds counter
@@ -29,6 +29,9 @@ int TXflag = 2;                               // Initially, wait two minites
 int REbutton = 7;                             // Rotary Encoder Switch. Deafult 1Mhz
 int REinc = 0;                                // Rotary Encoder right turns  
 int REdec = 0;                                // Rotary Encoder left turns
+
+// Interval (minutes) between transmissions 
+int Interval = 4;                             // Wait 4 minutes, then translate
 
 // Beacon data
 double frequency = 0.0;                       // The nominal normal beacon frequency, i.e. carrier frequency

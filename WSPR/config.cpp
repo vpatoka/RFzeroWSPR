@@ -9,7 +9,7 @@ void LoadConfiguration()
     // EXISTING VALUES
     int oldCalibInterval = calibInterval;
     double oldFrequency = frequency;
-
+    int oldInterval = Interval;
 
     // HARDWARE
     int t1Hardware = eeprom.readByte(EEPROM_HW_T1, 0);
@@ -42,6 +42,11 @@ void LoadConfiguration()
     for (int i = 0; i < 16; i++)
         call[i] = eeprom.readByte(EEPROM_BEACON_Call + i, 0x2e);
     call[15] = 0;                                          // Safe 0 terminator
+    
+    Interval = eeprom.readByte(EEPROM_BEACON_Interval, 4);
+    if (Interval != oldInterval)
+      if(Interval < 2 || Interval > 59)
+        Interval = 2;                                     // Force TX Interval
 
 
     // WSPR

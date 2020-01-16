@@ -27,6 +27,9 @@
 // WSPR
 #define EEPROM_BEACON_WSPRPower      194  // 1 byte
 
+// INTERVAL
+#define EEPROM_BEACON_Interval       195  // 1 byte
+
 // Function prototypes
 void LoadConfiguration();
 

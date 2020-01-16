@@ -13,7 +13,7 @@ extern const char swPackage[];
 extern const char swVersion[];
 
 // Hardware
-extern int displayMode;                // LCD mode: 0: none, 1: 16x2
+extern int displayMode;                // LCD mode: 0: none, 1: 20x4
 extern int displayAutoUpdate;          // Allow automated updating of the LCD
 
 extern int warmUp;                     // Warm up seconds counter
@@ -38,6 +38,8 @@ extern int REbutton;                   // Rotary Encoder Button
 extern int REinc;                      // Rotary Encoder right turns  
 extern int REdec;                      // Rotary Encoder left turns
 
+// Interval (minutes) between transmissions 
+extern int Interval; 
 
 // Beacon data
 extern double frequency;               // The nominal normal beacon frequency, i.e. carrier frequency
