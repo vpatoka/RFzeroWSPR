@@ -431,8 +431,8 @@ void manageFreq(void)
   LCD.print("Set Beacon Frequency");
   LCD.setCursor(0, 1);
   LCD.print("  (Push or Rotate)");
-  LCD.setCursor(0, 2);
-  LCD.print("MULT: x");  
+  //LCD.setCursor(0, 2);
+  //LCD.print("MULT: x");  
   LCD.setCursor(0, 3);
   LCD.print("FREQ: ");  
 
@@ -443,24 +443,31 @@ void manageFreq(void)
     switch(REbutton) {
       case 1:
         mult = 1.0;
+        sprintf(esc,"RANK: 1Hz   ");
         break;
       case 2:
         mult = 10.0;
+        sprintf(esc,"RANK: 10Hz  ");
         break;
       case 3:
         mult = 100.0;
+        sprintf(esc,"RANK: 100Hz ");
         break;
       case 4:
         mult = 1000.0;
+        sprintf(esc,"RANK: 1KHz  ");
         break;
       case 5:
         mult = 10000.0;
+        sprintf(esc,"RANK: 10KHz ");
         break;
       case 6:
         mult = 100000.0;
+        sprintf(esc,"RANK: 100KHz");
         break;
       case 7:
         mult = 1000000.0;
+        sprintf(esc,"RANK: 1MHz  ");
         break;
       default:
         mult = 0.0;
@@ -470,10 +477,14 @@ void manageFreq(void)
     if(REbutton != prevstep) {
       flag = 0;
       prevstep = REbutton;
+      LCD.setCursor(0, 2);
+      LCD.print(esc);
+      /*
       LCD.setCursor(7, 2);
       LCD.print("       ");
       LCD.setCursor(7, 2);
-      LCD.print(mult, 0);  
+      LCD.print(mult, 0);
+      */  
     }   
     if(REinc) {
       if ((frequency += (REinc*mult)) > 200000000.0)
